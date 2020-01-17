@@ -44,7 +44,11 @@ class MonetaResponseModuleFrontController extends ModuleFrontController
             $statusCheckRes = $this->moneta->getPaymentStatus($merchantTxId);
             if( $statusCheckRes->result =="success" &&  ($statusCheckRes->status == 'SET_FOR_CAPTURE' || $statusCheckRes->status == 'CAPTURED' || $statusCheckRes->status == 'SUCCESS') ) {
                 $finalStatus = "success";
-            }
+            }else if ($statusCheckRes->status == 'STARTED' || $statusCheckRes->status == 'WAITING_RESPONSE' || $statusCheckRes->status == 'INCOMPLETE'){
+                $finalStatus = "inprogress";
+            }else {
+				$finalStatus = "failure";
+			}
         }
         
         // load order
@@ -52,7 +56,9 @@ class MonetaResponseModuleFrontController extends ModuleFrontController
         $order = new Order( $raw['id_order_raw']);
 
         $id_order_state = (int)Configuration::get($this->mapStatuses[$finalStatus]);
-        $order->setCurrentState($id_order_state);
+		if( ($order->getCurrentState() == null)  || ($id_order_state !=  $order->getCurrentState()) ) {
+			$order->setCurrentState($id_order_state);
+		}
         //update status in evopayments
         $this->moneta->updateEvoPaymentsStatus($merchantTxId, $finalStatus);
         $this->moneta->updateIdOrderInEvoPayment($raw['id_evo_payment'], $raw['id_order_raw']);
